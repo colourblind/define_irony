@@ -5,8 +5,9 @@ import math
 from xml.etree.ElementTree import ElementTree
 
 """
-TODO: Handle directory copies
+Subversion visualisation
 
+TODO: Handle directory copies
 """
 
 data = dict()
