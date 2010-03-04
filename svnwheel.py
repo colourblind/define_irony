@@ -20,7 +20,7 @@ label = pyglet.text.Label(font_name='Arial',
                           anchor_x='center', anchor_y='center')
 
 def setup():
-   glClearColor(0, 0, 0, 0)
+   glClearColor(0.15, 0.15, 0.15, 1)
    glColor3f(1, 0, 0)
    glDisable(GL_DEPTH_TEST)
    glDisable(GL_CULL_FACE)
@@ -54,10 +54,11 @@ def get_data(filename):
     xmlRoot = tree.parse(filename)
     maxRev = 0
     
+    print('Fetching data')
+    print('Found {0} entries'.format(len(xmlRoot.findall('logentry'))))
+    
     for logElement in reversed(xmlRoot.findall('logentry')):
         for pathElement in logElement.findall('paths/path'):
-            if pathElement.text not in data:
-                data[pathElement.text] = []
             # If a directory is deleted, remove all the files in it, but only if they've
             # not already been deleted
             if pathElement.attrib['action'] == 'D' and pathElement.attrib['kind'] == 'dir':
@@ -65,10 +66,22 @@ def get_data(filename):
                     if key.startswith(pathElement.text) and data[key][len(data[key]) - 1][1] != 'D':
                         data[key].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
             # Handle file and directory copies
-            
-            
-            data[pathElement.text].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
-            maxRev = max(maxRev, int(logElement.attrib['revision']))
+            elif pathElement.attrib['action'] == 'A' and pathElement.attrib['kind'] == 'dir' and 'copyfrom-path' in pathElement.attrib:
+                print('found path copy {0} {1}'.format(pathElement.attrib['copyfrom-path'], pathElement.text))
+                for key in data.keys():
+                    lastDataEntry = data[key][len(data[key]) - 1];
+                    print('{0} {1} {2}'.format(key, (int(logElement.attrib['revision'])), lastDataEntry))
+                    if key.startswith(pathElement.attrib['copyfrom-path']) and (lastDataEntry[0] == (int(logElement.attrib['revision'])) or lastDataEntry[1] != 'D'):
+                        newKey = key.replace(pathElement.attrib['copyfrom-path'], pathElement.text)
+                        data[newKey] = []
+                        print('{0} {1}'.format(newKey, pathElement.text))
+                        data[newKey].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
+            else:
+                if pathElement.text not in data:
+                    data[pathElement.text] = []
+                
+                data[pathElement.text].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
+                maxRev = max(maxRev, int(logElement.attrib['revision']))
     
     return data, maxRev
     
