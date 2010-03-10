@@ -13,6 +13,8 @@ TODO: Handle directory copies
 data = dict()
 maxRev = 0
 window = pyglet.window.Window(resizable=True)
+fps = pyglet.clock.ClockDisplay()
+displayList = 0
 
 label = pyglet.text.Label(font_name='Arial',
                           font_size=12,
@@ -41,9 +43,10 @@ def on_resize(width, height):
 @window.event
 def on_draw():
     window.clear()
-    render_data(window, data)
+    glCallList(displayList)
     glLoadIdentity()
     label.draw()
+    fps.draw()
     
 @window.event
 def on_mouse_motion(x, y, dx, dy):
@@ -92,13 +95,17 @@ def render_data(window, data):
     angleStep = 360.0 / len(data)
     maxRadius = min(centreX - 30, centreY - 30)
     revStep = float(maxRadius) / maxRev
+    	
+    currentAngle = 0.0
+    itemIndex = 0
+    
+    displayList = glGenLists(1)
+    glNewList(displayList, GL_COMPILE)
     
     glMatrixMode(GL_MODELVIEW)    
     glLoadIdentity()
     glTranslatef(float(centreX), float(centreY), 0.0)
-	
-    currentAngle = 0.0
-    itemIndex = 0
+    
     for key in sorted(data.iterkeys()):
         item = data[key]
         glLoadName(GLuint(itemIndex))
@@ -126,6 +133,9 @@ def render_data(window, data):
             
         currentAngle = currentAngle + angleStep
         itemIndex = itemIndex + 1
+    glEndList()
+    
+    return displayList
 
 def select_data(x, y):
     buffer = (GLuint * 8)(0)
@@ -148,7 +158,7 @@ def select_data(x, y):
     glOrtho(0, window.width, 0, window.height, -1, 100)
 
     glMatrixMode(GL_MODELVIEW)
-    render_data(window, data)
+    glCallList(displayList)
     
     glMatrixMode(GL_PROJECTION)
     glPopMatrix()
@@ -197,4 +207,5 @@ filename = 'log.xml'
 if len(sys.argv) > 1:
     filename = sys.argv[1]
 data, maxRev = get_data(filename)
+displayList = render_data(window, data)
 pyglet.app.run()
