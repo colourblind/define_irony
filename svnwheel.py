@@ -15,6 +15,9 @@ maxRev = 0
 window = pyglet.window.Window(resizable=True)
 fps = pyglet.clock.ClockDisplay()
 displayList = 0
+x = 0
+y = 0
+z = 280
 
 label = pyglet.text.Label(font_name='Arial',
                           font_size=12,
@@ -22,36 +25,70 @@ label = pyglet.text.Label(font_name='Arial',
                           anchor_x='center', anchor_y='center')
 
 def setup():
-   glClearColor(0.15, 0.15, 0.15, 1)
-   glColor3f(1, 0, 0)
-   glDisable(GL_DEPTH_TEST)
-   glDisable(GL_CULL_FACE)
-   glDisable(GL_LIGHTING)
+    glClearColor(0.15, 0.15, 0.15, 1)
+    glDisable(GL_DEPTH_TEST)
+    glDisable(GL_CULL_FACE)
+    glDisable(GL_LIGHTING)
     
 @window.event
 def on_resize(width, height):
-   glViewport(0, 0, width, height)
-   glMatrixMode(GL_PROJECTION)
-   glLoadIdentity()
-   glOrtho(0, width, 0, height, -1, 100)
-   glMatrixMode(GL_MODELVIEW)
-   
-   label.x = window.width // 2
-   
-   return pyglet.event.EVENT_HANDLED
+    glViewport(0, 0, width, height)
+    label.x = window.width // 2
+    return pyglet.event.EVENT_HANDLED
 
 @window.event
 def on_draw():
     window.clear()
+    set_camera()
     glCallList(displayList)
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    glOrtho(0, window.width, 0, window.height, -1, 100)
+    glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     label.draw()
     fps.draw()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
     
 @window.event
 def on_mouse_motion(x, y, dx, dy):
     select_data(x, y)
-            
+
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    global z
+    if button == 1:
+        z -= 10
+    elif button == 4:
+        z += 10
+        
+@window.event
+def on_mouse_drag(mx, my, dx, dy, buttons, modifiers):
+    global x, y
+    
+    if dx > 0:
+        x += 10
+    elif dx < 0:
+        x -= 10
+        
+    if dy > 0:
+        y += 10
+    elif dy < 0:
+        y -= 10
+
+def set_camera(picking=False, px=0, py=0, view=(GLint * 4)(0)):
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    if picking:
+        gluPickMatrix(px, py, 1, 1, view)
+    gluPerspective(90, float(window.width) / window.height, 0.5, 500);
+
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    gluLookAt(x, y, z, x, y, z - 1, 0, 1, 0);
+        
 def get_data(filename):
     tree = ElementTree()
     xmlRoot = tree.parse(filename)
@@ -59,6 +96,9 @@ def get_data(filename):
     
     print('Fetching data')
     print('Found {0} entries'.format(len(xmlRoot.findall('logentry'))))
+    
+    data['/'] = []
+    data['/'].append((0, 'A'));
     
     for logElement in reversed(xmlRoot.findall('logentry')):
         for pathElement in logElement.findall('paths/path'):
@@ -93,7 +133,7 @@ def render_data(window, data):
     centreY = window.height // 2 + 10
     quadric = gluNewQuadric()    
     angleStep = 360.0 / len(data)
-    maxRadius = min(centreX - 30, centreY - 30)
+    maxRadius = 250
     revStep = float(maxRadius) / maxRev
     	
     currentAngle = 0.0
@@ -102,10 +142,6 @@ def render_data(window, data):
     displayList = glGenLists(1)
     glNewList(displayList, GL_COMPILE)
     
-    glMatrixMode(GL_MODELVIEW)    
-    glLoadIdentity()
-    glTranslatef(float(centreX), float(centreY), 0.0)
-    
     for key in sorted(data.iterkeys()):
         item = data[key]
         glLoadName(GLuint(itemIndex))
@@ -113,12 +149,12 @@ def render_data(window, data):
             j = float(item[i + 1][0]) / maxRev
             r, g, b = hsv_to_rgb(currentAngle, j, 1.0)
             glColor3f(r, g, b)
-            gluPartialDisk(quadric, item[i][0] * revStep, item[i + 1][0] * revStep, 6, 1, currentAngle, angleStep)
+            gluPartialDisk(quadric, item[i][0] * revStep, item[i + 1][0] * revStep, 2, 1, currentAngle, angleStep)
         
         if item[len(item) - 1][1] != 'D':
             r, g, b = hsv_to_rgb(currentAngle, 1.0, 1.0)
             glColor3f(r, g, b)
-            gluPartialDisk(quadric, item[len(item) - 1][0] * revStep, maxRadius, 6, 1, currentAngle, angleStep)            
+            gluPartialDisk(quadric, item[len(item) - 1][0] * revStep, maxRadius, 2, 1, currentAngle, angleStep)            
         
         # Render points on commits
         glColor3f(1, 1, 1)
@@ -128,7 +164,7 @@ def render_data(window, data):
             glPushMatrix()
             glRotatef(currentAngle + (angleStep / 2), 0, 0, -1)
             glTranslatef(0, item[i][0] * revStep, 0)
-            gluDisk(quadric, 0, pointRadius, 12, 1)
+            gluDisk(quadric, 0, pointRadius, 10, 1)
             glPopMatrix()
             
         currentAngle = currentAngle + angleStep
@@ -145,23 +181,14 @@ def select_data(x, y):
     glGetIntegerv(GL_VIEWPORT, view)
     
     hits = 0
-    
+        
     glRenderMode(GL_SELECT)
     
     glInitNames()
     glPushName(0)
-    
-    glMatrixMode(GL_PROJECTION)
-    glPushMatrix()
-    glLoadIdentity()
-    gluPickMatrix(x, y, 1, 1, view)
-    glOrtho(0, window.width, 0, window.height, -1, 100)
 
-    glMatrixMode(GL_MODELVIEW)
+    set_camera(True, x, y, view)
     glCallList(displayList)
-    
-    glMatrixMode(GL_PROJECTION)
-    glPopMatrix()
 
     hits = glRenderMode(GL_RENDER)
 
