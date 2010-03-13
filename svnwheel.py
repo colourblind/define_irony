@@ -53,30 +53,30 @@ def on_draw():
     glPopMatrix()
     
 @window.event
-def on_mouse_motion(x, y, dx, dy):
-    select_data(x, y)
+def on_mouse_motion(mx, my, dx, dy):
+    select_data(mx, my)
 
 @window.event
-def on_mouse_press(x, y, button, modifiers):
-    global z
-    if button == 1:
-        z -= 10
-    elif button == 4:
-        z += 10
+def on_mouse_drag(mx, my, dx, dy, button, modifiers):
+    global x, y, z
+    label.text = ''
+    if button == pyglet.window.mouse.LEFT:
+        x += dx
+        y += dy
+    if button == pyglet.window.mouse.RIGHT:
+        z -= dy
+
+@window.event
+def on_mouse_release(mx, my, button, modifiers):
+    select_data(mx, my)
         
 @window.event
-def on_mouse_drag(mx, my, dx, dy, buttons, modifiers):
-    global x, y
-    
-    if dx > 0:
-        x += 10
-    elif dx < 0:
-        x -= 10
-        
-    if dy > 0:
-        y += 10
-    elif dy < 0:
-        y -= 10
+def on_key_press(symbol, modifiers):
+    global x, y, z
+    if symbol == pyglet.window.key.R:
+        x = 0
+        y = 0
+        z = 280
 
 def set_camera(picking=False, px=0, py=0, view=(GLint * 4)(0)):
     glMatrixMode(GL_PROJECTION)
@@ -110,14 +110,14 @@ def get_data(filename):
                         data[key].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
             # Handle file and directory copies
             elif pathElement.attrib['action'] == 'A' and pathElement.attrib['kind'] == 'dir' and 'copyfrom-path' in pathElement.attrib:
-                print('found path copy {0} {1}'.format(pathElement.attrib['copyfrom-path'], pathElement.text))
+#                print('found path copy {0} {1}'.format(pathElement.attrib['copyfrom-path'], pathElement.text))
                 for key in data.keys():
                     lastDataEntry = data[key][len(data[key]) - 1];
-                    print('{0} {1} {2}'.format(key, (int(logElement.attrib['revision'])), lastDataEntry))
+#                    print('{0} {1} {2}'.format(key, (int(logElement.attrib['revision'])), lastDataEntry))
                     if key.startswith(pathElement.attrib['copyfrom-path']) and (lastDataEntry[0] == (int(logElement.attrib['revision'])) or lastDataEntry[1] != 'D'):
                         newKey = key.replace(pathElement.attrib['copyfrom-path'], pathElement.text)
                         data[newKey] = []
-                        print('{0} {1}'.format(newKey, pathElement.text))
+#                        print('{0} {1}'.format(newKey, pathElement.text))
                         data[newKey].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
             else:
                 if pathElement.text not in data:
