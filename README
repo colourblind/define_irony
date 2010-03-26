@@ -1,0 +1,8 @@
+Define Irony - Shiny and Impractical Subversion Visualisation
+
+1. svn log --xml -v [directory] > log.xml
+2. python svnwheel.py log.xml
+3. ????
+4. PROFIT!
+
+Left-click and drag moves the viewport and right-click and drag will zoom in and out. To reset the view at any time just hit 'r'.
