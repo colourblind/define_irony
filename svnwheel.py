@@ -1,19 +1,18 @@
 import sys
-import pyglet
-from pyglet.gl import *
 import math
 from xml.etree.ElementTree import ElementTree
+import pyglet
+from pyglet.gl import *
 
 """
 Subversion visualisation
-
-TODO: Handle directory copies
 """
 
 data = dict()
 maxRev = 0
 window = pyglet.window.Window(resizable=True)
 fps = pyglet.clock.ClockDisplay()
+showFps = False
 displayList = 0
 x = 0
 y = 0
@@ -21,8 +20,15 @@ z = 280
 
 label = pyglet.text.Label(font_name='Arial',
                           font_size=12,
+                          color=(255, 255, 255, 255),
                           x=window.width//2, y=14,
                           anchor_x='center', anchor_y='center')
+shadow = pyglet.text.Label(font_name='Arial',
+                          font_size=12,
+                          color=(0, 0, 0, 255),
+                          x=window.width//2 + 1, y=14 - 1,
+                          anchor_x='center', anchor_y='center')
+      
 
 def setup():
     glClearColor(0.15, 0.15, 0.15, 1)
@@ -47,8 +53,12 @@ def on_draw():
     glOrtho(0, window.width, 0, window.height, -1, 100)
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
+    shadow.text = label.text
+    shadow.x = label.x + 1
+    shadow.draw()
     label.draw()
-    fps.draw()
+    if showFps:
+        fps.draw()
     glMatrixMode(GL_PROJECTION)
     glPopMatrix()
     
@@ -77,6 +87,7 @@ def on_key_press(symbol, modifiers):
         x = 0
         y = 0
         z = 280
+        label.text = ''
 
 def set_camera(picking=False, px=0, py=0, view=(GLint * 4)(0)):
     glMatrixMode(GL_PROJECTION)
@@ -110,14 +121,11 @@ def get_data(filename):
                         data[key].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
             # Handle file and directory copies
             elif pathElement.attrib['action'] == 'A' and pathElement.attrib['kind'] == 'dir' and 'copyfrom-path' in pathElement.attrib:
-#                print('found path copy {0} {1}'.format(pathElement.attrib['copyfrom-path'], pathElement.text))
                 for key in data.keys():
                     lastDataEntry = data[key][len(data[key]) - 1];
-#                    print('{0} {1} {2}'.format(key, (int(logElement.attrib['revision'])), lastDataEntry))
                     if key.startswith(pathElement.attrib['copyfrom-path']) and (lastDataEntry[0] == (int(logElement.attrib['revision'])) or lastDataEntry[1] != 'D'):
                         newKey = key.replace(pathElement.attrib['copyfrom-path'], pathElement.text)
                         data[newKey] = []
-#                        print('{0} {1}'.format(newKey, pathElement.text))
                         data[newKey].append((int(logElement.attrib['revision']), pathElement.attrib['action']))
             else:
                 if pathElement.text not in data:
